@@ -1,0 +1,5 @@
+*.so
+*.o
+*.user
+opengl-example
+unit_tests
