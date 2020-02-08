@@ -22,7 +22,7 @@
  */
 typedef struct prj_ttf_reader_image {
     uint8_t *data;      // 8-bit greyscale image data, size is width*height
-                        // and pixel position is y*height+x
+                        // and pixel position is y*width+x
     int32_t width;      // width of the image
     int32_t height;     // height of the image
 } prj_ttf_reader_image_t;
