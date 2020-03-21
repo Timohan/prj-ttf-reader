@@ -60,7 +60,10 @@ bool DrawText::init(prj_ttf_reader_data_t *data, const char *text)
     float kerning = 0;
     Vertice *vertices;
     const prj_ttf_reader_glyph_data_t *glyph;
+    const prj_ttf_reader_glyph_data_t *left_glyph;
     uint32_t *list_characters, list_characters_size;
+    int32_t left_advance_x, left_bearing;
+    int32_t right_bearing;
 
     glGenVertexArrays(1, &m_vertexArrayObject);
     glGenBuffers(1, &m_vertexBufferObject);
@@ -84,15 +87,26 @@ bool DrawText::init(prj_ttf_reader_data_t *data, const char *text)
             bottomY = static_cast<float>(glyph->image_pixel_bottom_y-glyph->image_pixel_top_y+glyph->image_pixel_offset_line_y) + 20;
         }
 
+        // calculate advance (x)
         if (i) {
-            kerning = prj_ttf_reader_get_kerning(list_characters[i-1], list_characters[i], data);
+            left_glyph = prj_ttf_reader_get_character_glyph_data(list_characters[i-1], data);
+            left_advance_x = (int32_t)(left_glyph->image_pixel_advance_x + 0.5f);
+            left_bearing = (int)left_glyph->image_pixel_bearing;
+            if (left_glyph->image_pixel_bearing < 0 && left_glyph->image_pixel_bearing > -1) {
+                left_bearing = -1;
+            }
+            left_advance_x -= left_bearing;
+            left_advance_x -= left_glyph->image_pixel_right_x - left_glyph->image_pixel_left_x;
+            right_bearing = (int)glyph->image_pixel_bearing;
+            if (glyph->image_pixel_bearing < 0 && glyph->image_pixel_bearing > -1) {
+                right_bearing = -1;
+            }
+            kerning = prj_ttf_reader_get_kerning(list_characters[i-1], list_characters[i], data) + (float)(right_bearing + left_advance_x);
+
+            leftX += (float)(left_glyph->image_pixel_right_x - left_glyph->image_pixel_left_x);
+            leftX += kerning;
         }
 
-        if (glyph->image_pixel_bearing <= 0) {
-            leftX += glyph->image_pixel_bearing;
-        }
-        leftX += kerning;
-        leftX = roundf(leftX);
 
         vertices[verticesIndex].x = leftX;
         vertices[verticesIndex].y = bottomY - static_cast<float>(glyph->image_pixel_bottom_y-glyph->image_pixel_top_y) - static_cast<float>(glyph->image_pixel_offset_line_y);
@@ -119,11 +133,6 @@ bool DrawText::init(prj_ttf_reader_data_t *data, const char *text)
         verticesIndex++;
 
         m_charactersCount++;
-        if (kerning + glyph->image_pixel_bearing < 0) {
-            leftX -= glyph->image_pixel_bearing;
-        }
-
-        leftX += glyph->image_pixel_advance_x;
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, m_vertexBufferObject);
