@@ -7,7 +7,7 @@
  *
  * Copyright of Timo Hannukkala. All rights reserved.
  *
- * \author Timo Hannukkala <timo.hannukkala@hotmail.com>
+ * \author Timo Hannukkala <timohannukkala@hotmail.com>
  */
 
 #ifndef GLYPH_IMAGE_POSITIONS_H
