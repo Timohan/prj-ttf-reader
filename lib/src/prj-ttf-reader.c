@@ -23,6 +23,7 @@
 #include "reader/parse_value.h"
 #include "reader/parse_text.h"
 #include "font_tables.h"
+#include "supported_characters/read_supported_characters.h"
 
 static int prj_ttf_reader_parse_data(const uint32_t *list_characters, uint32_t list_characters_size,
                                      const uint8_t *data, size_t data_size, float font_size_px, font_tables_t *tables,
@@ -419,4 +420,70 @@ int prj_ttf_reader_get_characters(const char *utf8_text, uint32_t **list_charact
 
     *list_characters = ret;
     return 0;
+}
+
+/*!
+ * \brief prj_ttf_reader_init_supported_character
+ *
+ * Allocs the prj_ttf_reader_supported_characters_t,
+ * makes all values 0 or NULL
+ * Call this function first time
+ *
+ * \return allocated prj_ttf_reader_supported_characters_t with values 0
+ */
+prj_ttf_reader_supported_characters_t *prj_ttf_reader_init_supported_character(void)
+{
+    return (prj_ttf_reader_supported_characters_t *)calloc(1, sizeof(prj_ttf_reader_supported_characters_t));
+}
+
+/*!
+ * \brief prj_ttf_reader_clear_supported_character
+ *
+ * Clears the supported characters data
+ * Call this function after prj_ttf_reader_supported_characters_t is no longer required to use
+ *
+ * \param data [in/out] sets data to NULL
+ */
+void prj_ttf_reader_clear_supported_character(prj_ttf_reader_supported_characters_t **supported_characters)
+{
+    if (!*supported_characters) {
+        return;
+    }
+
+    if ((*supported_characters)->list_character) {
+        free((*supported_characters)->list_character);
+    }
+    free(*supported_characters);
+    *supported_characters = NULL;
+}
+
+/*!
+ * \brief prj_ttf_reader_get_supported_characters
+ *
+ * get supported characters from font file (ttf)
+ *
+ * \param font_file_name [in] full filepath of ttf file
+ * \param supported_characters [out] supported characters will be filled here
+ * \return 0 on success
+ */
+int prj_ttf_reader_get_supported_characters(const char *font_file_name, prj_ttf_reader_supported_characters_t *supported_characters)
+{
+    font_tables_t tables;
+    memset(&tables, 0, sizeof(tables));
+
+    uint8_t *file_data;
+    size_t file_data_size;
+    int ret;
+
+    file_data = prj_ttf_reader_read_file(font_file_name, &file_data_size);
+
+    if (!file_data) {
+        return 1;
+    }
+
+    ret = prj_ttf_reader_parse_supported_characters(file_data, file_data_size, &tables, supported_characters);
+
+    free(file_data);
+    prj_ttf_reader_clear(&tables);
+    return ret;
 }

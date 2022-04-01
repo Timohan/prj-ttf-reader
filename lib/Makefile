@@ -38,6 +38,10 @@ reader_SRCDIR:=$(CURRENT_DIR)src/reader
 reader_SRCS:=$(wildcard $(reader_SRCDIR)/*c)
 reader_OBJS:=$(reader_SRCS:.c=.o)
 
+supported_characters_SRCDIR:=$(CURRENT_DIR)src/supported_characters
+supported_characters_SRCS:=$(wildcard $(supported_characters_SRCDIR)/*c)
+supported_characters_OBJS:=$(supported_characters_SRCS:.c=.o)
+
 USE_TIME_DEBUG:=
 
 all: default
@@ -45,8 +49,8 @@ all: default
 time-debug:
 	make USE_TIME_DEBUG="-DTIME_DEBUG"
 
-default: $(src_OBJS) $(drawfont_OBJS) $(reader_OBJS)
-	$(CC) $(src_OBJS) $(drawfont_OBJS) $(reader_OBJS) $(LDFLAGS) -o $(TARGET)
+default: $(src_OBJS) $(drawfont_OBJS) $(reader_OBJS) $(supported_characters_OBJS)
+	$(CC) $(src_OBJS) $(drawfont_OBJS) $(reader_OBJS) $(supported_characters_OBJS) $(LDFLAGS) -o $(TARGET)
 
 $(src_OBJS):%.o: %.c
 	$(CC) $(CFLAGS) $(USE_TIME_DEBUG) -c $< -o $@
@@ -57,9 +61,13 @@ $(drawfont_OBJS):%.o: %.c
 $(reader_OBJS):%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(supported_characters_OBJS):%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 clean:
 	rm -f src/reader/*.o
 	rm -f src/drawfont/*.o
+	rm -f src/supported_characters/*.o
 	rm -f src/*.o
 	rm -f *.so
 

@@ -100,6 +100,20 @@ typedef struct prj_ttf_reader_data {
     uint32_t list_kerning_left_character_count;
 } prj_ttf_reader_data_t;
 
+/*!
+ * \brief prj_ttf_reader_supported_characters
+ *
+ * supported characters list
+ * Use functions:
+ * prj_ttf_reader_init_supported_character() to alloc
+ * prj_ttf_reader_get_supported_characters() to generate data
+ * prj_ttf_reader_clear_supported_character() to clear supported data after using
+ */
+typedef struct prj_ttf_reader_supported_characters {
+    uint32_t character_list_count;
+    uint32_t *list_character;
+} prj_ttf_reader_supported_characters_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -180,6 +194,39 @@ void prj_ttf_reader_clear_data(prj_ttf_reader_data_t **data);
  * \return 0 on success
  */
 int prj_ttf_reader_get_characters(const char *utf8_text, uint32_t **list_characters, uint32_t *list_characters_size);
+
+/*!
+ * \brief prj_ttf_reader_init_supported_character
+ *
+ * Allocs the prj_ttf_reader_supported_characters_t,
+ * makes all values 0 or NULL
+ * Call this function first time
+ *
+ * \return allocated prj_ttf_reader_supported_characters_t with values 0
+ */
+prj_ttf_reader_supported_characters_t *prj_ttf_reader_init_supported_character(void);
+
+/*!
+ * \brief prj_ttf_reader_clear_supported_character
+ *
+ * Clears the supported characters data
+ * Call this function after prj_ttf_reader_supported_characters_t is no longer required to use
+ *
+ * \param data [in/out] sets data to NULL
+ */
+void prj_ttf_reader_clear_supported_character(prj_ttf_reader_supported_characters_t **supported_characters);
+
+/*!
+ * \brief prj_ttf_reader_get_supported_characters
+ *
+ * get supported characters from font file (ttf)
+ *
+ * \param font_file_name [in] full filepath of ttf file
+ * \param supported_characters [out] supported characters will be filled here
+ * \return 0 on success
+ */
+int prj_ttf_reader_get_supported_characters(const char *font_file_name, prj_ttf_reader_supported_characters_t *supported_characters);
+
 #ifdef __cplusplus
 }
 #endif

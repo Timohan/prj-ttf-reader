@@ -8,6 +8,7 @@ There is plenty of things that would be nice to do, as listed in TODO.md
 There is 3 parts in the project:
 * Library (the prj-ttf-reader itself), written in c
 * opengl-example, renders the prj-ttf-reader results in opengl program, written in c++
+* supported-characters-example, prints supported characters of ttf
 * unit tests, some basic tests for library, using googletest, written in c++
 
 prj-ttf-reader was done on ubuntu 18.04.
@@ -39,7 +40,7 @@ Required internal libraries: prj-ttf-reader library
 
 ### Build
 
-cd example  
+cd example/opengl-example  
 make
 
 ### Running the opengl-example
@@ -51,6 +52,22 @@ For example:
 
 ./opengl-example -s "the quick brown fox jumps over the lazy dog." -f "<"path to fonts">/freefont/FreeSans.ttf" -z 40  
 ./opengl-example -s "ગુજરાતી યુનિકોડ ફોન્ટ સૂચી" -f "<"path to fonts">/samyak-fonts/Samyak-Gujarati.ttf" -z 20  
+
+## supported-characters-example
+
+supported-characters-example prints supported characters (glyphs) in ttf.
+
+### Build
+
+cd example/supported-characters-example  
+make
+
+### Running the supported-characters-example
+
+Usage: ./supported-characters-example -f <"path to ttf">
+
+For example:
+./supported-characters-example -f "/tmp/font.ttf"
 
 ### Clean
 
