@@ -133,6 +133,8 @@ prj_ttf_reader_data_t *prj_ttf_reader_init_data(void);
  * generates the glyph(s) images from the list of characters (of utf8_text)
  * prj_ttf_reader_init_data() must be called before this function
  *
+ * this is similar function as prj_ttf_reader_generate_glyphs_list_characters
+ *
  * \param utf8_text [in]
  * \param font_file_name [in] full filepath of ttf file
  * \param font_size_px [in] font size's in px
@@ -141,6 +143,24 @@ prj_ttf_reader_data_t *prj_ttf_reader_init_data(void);
  * \return 0 on success
  */
 int prj_ttf_reader_generate_glyphs_utf8(const char *utf8_text, const char *font_file_name, float font_size_px, int quality, prj_ttf_reader_data_t *data);
+
+/*!
+ * \brief prj_ttf_reader_generate_glyphs_list_characters
+ *
+ * generates the glyph(s) images from the list of characters (!NOT! utf8_text)
+ * prj_ttf_reader_init_data() must be called before this function
+ *
+ * this is similar function as prj_ttf_reader_generate_glyphs_utf8
+ *
+ * \param list_characters [in] list of characters, each character is uint32
+ * \param list_characters_size [in] size of list_characters
+ * \param font_file_name [in] full filepath of ttf file
+ * \param font_size_px [in] font size's in px
+ * \param quality [in] quality of the anti-aliasing, use 5 or 10 (5 is faster than 10)
+ * \param data [in/out] fills the prj_ttf_reader_data_t, this data was got from prj_ttf_reader_init_data
+ * \return 0 on success
+ */
+int prj_ttf_reader_generate_glyphs_list_characters(const uint32_t *list_characters, const uint32_t list_characters_size, const char *font_file_name, float font_size_px, int quality, prj_ttf_reader_data_t *data);
 
 /*!
  * \brief prj_ttf_reader_get_character_glyph_data
