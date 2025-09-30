@@ -22,6 +22,8 @@ int glyph_graph_generator_generate_graph(const uint32_t *list_characters, uint32
                                          font_tables_t *tables, int quality,
                                          prj_ttf_reader_data_t *image_data,
                                          const horizontal_metrics_table_t *hor_metrics_table,
-                                         const horizontal_header_table_t *hor_header_table);
+                                         const horizontal_header_table_t *hor_header_table,
+                                         const float rotate,
+                                         const float move_glyph_x, const float move_glyph_y);
 
 #endif // GLYPH_GRAPH_GENERATOR_H

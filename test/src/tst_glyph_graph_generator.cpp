@@ -15,6 +15,8 @@
 int32_t get_min_value(float value, int quality);
 int32_t get_max_value(float value, int quality);
 int32_t get_zero_line_value(float value, int quality);
+int32_t decrease_min_value(int32_t value, int32_t quality, const float value_to_correct);
+int32_t increase_max_value(int32_t value, int32_t quality, const float value_to_correct);
 
 /*!
  * \brief tst_glyph_graph_generator_min_value
@@ -87,6 +89,27 @@ int tst_glyph_graph_generator_min_value()
         }
     }
 
+    if (decrease_min_value(3, 5, 5) != 3) {
+        return 11;
+    }
+    if (decrease_min_value(3, 5, 0) != -2) {
+        return 12;
+    }
+    if (decrease_min_value(3, 5, -1) != -2) {
+        return 13;
+    }
+    if (decrease_min_value(3, 5, -2) != -7) {
+        return 14;
+    }
+    if (decrease_min_value(3, 5, -6) != -7) {
+        return 15;
+    }
+    if (decrease_min_value(3, 5, -7) != -12) {
+        return 16;
+    }
+    if (decrease_min_value(3, 5, 3) != -2) {
+        return 17;
+    }
     return 0;
 }
 /*!
@@ -164,6 +187,33 @@ int tst_glyph_graph_generator_max_value()
         return 13;
     }
 
+    if (increase_max_value(3, 5, 0) != 3) {
+        return 14;
+    }
+    if (increase_max_value(3, 5, 2) != 3) {
+        return 15;
+    }
+    if (increase_max_value(3, 5, 3) != 8) {
+        return 16;
+    }
+    if (increase_max_value(3, 5, 4) != 8) {
+        return 17;
+    }
+    if (increase_max_value(3, 5, 7) != 8) {
+        return 18;
+    }
+    if (increase_max_value(3, 5, 8) != 13) {
+        return 19;
+    }
+    if (increase_max_value(3, 5, 9) != 13) {
+        return 20;
+    }
+    if (increase_max_value(3, 5, 13) != 18) {
+        return 21;
+    }
+    if (increase_max_value(3, 5, 14) != 18) {
+        return 22;
+    }
     return 0;
 }
 

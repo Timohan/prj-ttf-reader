@@ -28,8 +28,9 @@ typedef struct {
     int width;
     int height;
 
-    float min_x, min_y;
-    float max_x, max_y;
+    float rotated_min_x, rotated_min_y;
+    float rotated_max_x, rotated_max_y;
+
     int is_empty;
 } font_size_t;
 

@@ -45,6 +45,10 @@ typedef struct prj_ttf_reader_glyph_data {
     int32_t image_pixel_right_x;        // right pixel x on the prj_ttf_reader_image_t->data
     int32_t image_pixel_top_y;          // top pixel y on the prj_ttf_reader_image_t->data
     int32_t image_pixel_bottom_y;       // bottom pixel y on the prj_ttf_reader_image_t->data
+
+    int32_t image_pixel_offset_line_x;  // offset position by pixels when drawing a pixel (x)
+                                        // On rotate == 0.0f, this is (almost) always 0, but
+                                        // on rotate, it will change
     int32_t image_pixel_offset_line_y;  // offset position by pixels when drawing a pixel,
                                         // for example in A or R, it's 0, but with
                                         // characters 'j' or 'y' it can be negative value
@@ -52,9 +56,12 @@ typedef struct prj_ttf_reader_glyph_data {
                                         // positive value (pixels to up)
                                         // for example: if 'j' height is 20px, the offset
                                         // can be -4 (4px to down)
+                                        // NOTE: using rotate will change offset position
 
     float image_pixel_advance_x;        // advance (how much pixels (x) moves for next character) after the drawing
+                                        // NOTE: This offset doesn't count possible rotate
     float image_pixel_bearing;          // how many pixel (x) moves to right or left side before the drawing
+                                        // NOTE: This offset doesn't count possible rotate
 } prj_ttf_reader_glyph_data_t;
 
 /*!
@@ -145,6 +152,29 @@ prj_ttf_reader_data_t *prj_ttf_reader_init_data(void);
 int prj_ttf_reader_generate_glyphs_utf8(const char *utf8_text, const char *font_file_name, float font_size_px, int quality, prj_ttf_reader_data_t *data);
 
 /*!
+ * \brief prj_ttf_reader_generate_glyphs_utf8_rotate
+ *
+ * generates the glyph(s) images from the list of characters (of utf8_text)
+ * prj_ttf_reader_init_data() must be called before this function
+ *
+ * this is similar function as prj_ttf_reader_generate_glyphs_list_characters
+ *
+ * \param utf8_text [in]
+ * \param font_file_name [in] full filepath of ttf file
+ * \param font_size_px [in] font size's in px
+ * \param quality [in] quality of the anti-aliasing, use 5 or 10 (5 is faster than 10)
+ * \param data [in/out] fills the prj_ttf_reader_data_t, this data was got from prj_ttf_reader_init_data
+ * \param rotate [in] glyph rotated angle, value must be >= 0 && < M_PI*2
+ * \param move_glyph_x [in] glyph drawing move in quality pixels (x), this must be >= 0 && < quality
+ * for example, if move_glyph_x is 1 and quality is 5, glyph drawing is 0.2 pixels to right
+ * \param move_glyph_y [in] glyph drawing move in quality pixels (y), this must be >= 0 && < quality
+ * for example, if move_glyph_y is 1 and quality is 5, glyph drawing is 0.2 pixels to up
+ * \return 0 on success
+ */
+int prj_ttf_reader_generate_glyphs_utf8_rotate(const char *utf8_text, const char *font_file_name, float font_size_px, int quality, prj_ttf_reader_data_t *data,
+    float rotate, float move_glyph_x, float move_glyph_y);
+
+/*!
  * \brief prj_ttf_reader_generate_glyphs_list_characters
  *
  * generates the glyph(s) images from the list of characters (!NOT! utf8_text)
@@ -161,6 +191,29 @@ int prj_ttf_reader_generate_glyphs_utf8(const char *utf8_text, const char *font_
  * \return 0 on success
  */
 int prj_ttf_reader_generate_glyphs_list_characters(const uint32_t *list_characters, const uint32_t list_characters_size, const char *font_file_name, float font_size_px, int quality, prj_ttf_reader_data_t *data);
+
+/*!
+ * \brief prj_ttf_reader_generate_glyphs_list_characters_rotate
+ *
+ * generates the glyph(s) images from the list of characters (!NOT! utf8_text)
+ * prj_ttf_reader_init_data() must be called before this function
+ *
+ * this is similar function as prj_ttf_reader_generate_glyphs_utf8
+ *
+ * \param list_characters [in] list of characters, each character is uint32
+ * \param list_characters_size [in] size of list_characters
+ * \param font_file_name [in] full filepath of ttf file
+ * \param font_size_px [in] font size's in px
+ * \param quality [in] quality of the anti-aliasing, use 5 or 10 (5 is faster than 10)
+ * \param data [in/out] fills the prj_ttf_reader_data_t, this data was got from prj_ttf_reader_init_data
+ * \param rotate [in] glyph rotated angle, value must be >= 0 && < M_PI*2
+ * \param move_glyph_x [in] glyph drawing move in quality pixels (x), this must be >= 0 && < quality
+ * for example, if move_glyph_x is 1 and quality is 5, glyph drawing is 0.2 pixels to right
+ * \param move_glyph_y [in] glyph drawing move in quality pixels (y), this must be >= 0 && < quality
+ * for example, if move_glyph_y is 1 and quality is 5, glyph drawing is 0.2 pixels to up
+ * \return 0 on success
+ */
+int prj_ttf_reader_generate_glyphs_list_characters_rotate(const uint32_t *list_characters, const uint32_t list_characters_size, const char *font_file_name, float font_size_px, int quality, prj_ttf_reader_data_t *data, float rotate, float move_glyph_x, float move_glyph_y);
 
 /*!
  * \brief prj_ttf_reader_get_character_glyph_data
@@ -246,6 +299,26 @@ void prj_ttf_reader_clear_supported_character(prj_ttf_reader_supported_character
  * \return 0 on success
  */
 int prj_ttf_reader_get_supported_characters(const char *font_file_name, prj_ttf_reader_supported_characters_t *supported_characters);
+
+/**
+ * \brief prj_ttf_reader_rotate_by_angle
+ *
+ * calculates rotating point of x/y
+ *
+ * \param out_x [out] calculated - rotated x
+ * \param out_y [out] calculated - rotated y
+ * \param origin_x "origin" / center point of x, that rotating happens thru this point
+ * internally, when prj-ttf-reader calculates position rotating position for glyph,
+ * this is horizontal x middle position
+ * \param origin_y "origin" / center point of y, that rotating happens thru this point
+ * internally, when prj-ttf-reader calculates position rotating position for glyph,
+ * this is offset 0 position
+ * \param x position to rotate by angle
+ * \param y position to rotate by angle
+ * \param rotate rotate angle by radians, must be between 0 and M_PI*2
+ * \return 0 if calculting was possible
+ */
+int prj_ttf_reader_rotate_by_angle(float *out_x, float *out_y, const float origin_x, const float origin_y, const float x, const float y, float rotate);
 
 #ifdef __cplusplus
 }

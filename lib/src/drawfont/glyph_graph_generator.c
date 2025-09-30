@@ -21,6 +21,7 @@
 #include "glyph_image_positions.h"
 #include "glyph_drawer.h"
 #include "glyph_filler.h"
+#include "rotate_math.h"
 
 /*!
  * \brief glyph_graph_generator_is_valid_character
@@ -45,6 +46,50 @@ static int glyph_graph_generator_is_valid_character(const uint32_t *list_charact
 }
 
 /*!
+ * \brief decrease_min_value
+ *
+ * decrease value to be smaller than value_to_correct
+ *
+ * \param value calcualted value that min value could be
+ * \param quality
+ * \param value_to_correct makes sure that min value must be smaller than this value
+ * \return
+ */
+#ifndef TEST_CASE
+static
+#endif
+int32_t decrease_min_value(int32_t value, int32_t quality, const float value_to_correct)
+{
+    if (value < (int32_t)(value_to_correct) -1) {
+        return value;
+    }
+    int32_t diff = (value - (int32_t)(value_to_correct))/quality;
+    return value - quality*(diff+1);
+}
+
+/*!
+ * \brief increase_max_value
+ *
+ * increase value to be bigger than value_to_correct
+ *
+ * \param value calcualted value that max value could be
+ * \param quality
+ * \param value_to_correct makes sure that max value must be bigger than this value
+ * \return
+ */
+#ifndef TEST_CASE
+static
+#endif
+int32_t increase_max_value(int32_t value, int32_t quality, const float value_to_correct)
+{
+    if (value > (int32_t)(value_to_correct)) {
+        return value;
+    }
+    int32_t diff = ((int32_t)(value_to_correct) - value)/quality;
+    return value + quality*(diff+1);
+}
+
+/*!
  * \brief get_min_value
  *
  * get min x/y value for drawing area
@@ -58,7 +103,8 @@ static int glyph_graph_generator_is_valid_character(const uint32_t *list_charact
 #ifndef TEST_CASE
 static
 #endif
-int32_t get_min_value(float value, int quality) {
+int32_t get_min_value(float value, int quality)
+{
     int i_value = (int)value;
 
     if (fabs((float)(i_value) - value) <= 0 && i_value % quality == 0) {
@@ -72,7 +118,15 @@ int32_t get_min_value(float value, int quality) {
     return i_value - quality;
 }
 
-
+static void set_min_max(float *min, float *max, const float new_value)
+{
+    if (new_value < *min) {
+        *min = new_value;
+    }
+    if (new_value > *max) {
+        *max = new_value;
+    }
+}
 
 /*!
  * \brief get_max_value
@@ -103,31 +157,6 @@ int32_t get_max_value(float value, int quality)
     return i_value + quality;
 }
 
-/*!
- * \brief get_zero_line_value
- * \param value
- * \param quality
- * \return
- */
-#ifndef TEST_CASE
-static
-#endif
-int32_t get_zero_line_value(float value, int quality)
-{
-    int i_value = (int)value;
-
-    if (i_value % quality == 0 && fabs((float)i_value - value) <= 0) {
-        return i_value/quality;
-    }
-
-    i_value -= i_value % quality;
-    if (value >= 0) {
-        return i_value/quality;
-    }
-
-    return i_value/quality - 1;
-}
-
 #ifndef TEST_CASE
 /*!
  * \brief glyph_graph_generator_generate_graph
@@ -144,6 +173,9 @@ int32_t get_zero_line_value(float value, int quality)
  * \param image_data
  * \param hor_metrics_table
  * \param hor_header_table
+ * \param rotate
+ * \param move_glyph_x
+ * \param move_glyph_y
  * \return 0 == success
  */
 int glyph_graph_generator_generate_graph(const uint32_t *list_characters, uint32_t list_characters_size,
@@ -151,7 +183,9 @@ int glyph_graph_generator_generate_graph(const uint32_t *list_characters, uint32
                                          font_tables_t *tables, int quality,
                                          prj_ttf_reader_data_t *image_data,
                                          const horizontal_metrics_table_t *hor_metrics_table,
-                                         const horizontal_header_table_t *hor_header_table)
+                                         const horizontal_header_table_t *hor_header_table,
+                                         const float rotate,
+                                         const float move_glyph_x, const float move_glyph_y)
 {
     const float rate = (float)quality*font_size_px/(float)tables->header_table.units_per_em;
     uint16_t index_glyf;
@@ -162,16 +196,19 @@ int glyph_graph_generator_generate_graph(const uint32_t *list_characters, uint32
     float min_x, min_y;
     float max_x, max_y;
     int required_width, required_height;
-    float square_min_x;
-    float square_min_y;
-    float square_max_x;
-    float square_max_y;
+    float rotated_min_x = 0;
+    float rotated_min_y = 0;
+    float rotated_max_x = 0;
+    float rotated_max_y = 0;
     int first_time;
     int is_empty;
     int ret;
     int32_t tmpi;
     font_size_t *tmp;
     font_drawing_t font_draw;
+    float rotated_x[3];
+    float rotated_y[3];
+    float calculated_x, calculated_y;
 
     memset(&font_draw, 0, sizeof(font_draw));
 
@@ -213,65 +250,48 @@ int glyph_graph_generator_generate_graph(const uint32_t *list_characters, uint32
             continue;
         }
 
-        square_min_x = 0;
-        square_min_y = 0;
-        square_max_x = 0;
-        square_max_y = 0;
+        rotated_min_x = 0;
+        rotated_min_y = 0;
+        rotated_max_x = 0;
+        rotated_max_y = 0;
         first_time = 1;
 
         for (i2=0;i2<tables->list_glyph[i].list_path_size;i2++) {
             for (i3=0;i3<tables->list_glyph[i].list_path[i2].list_glyph_curve_size;i3++) {
                 if (first_time) {
                     first_time = 0;
-                    square_min_x = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0;
-                    square_max_x = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0;
-                    square_min_y = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0;
-                    square_max_y = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0;
+                    rotate_by_angle_zero(&rotated_min_x, &rotated_min_y,
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0,
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0,
+                                    rotate);
+                    rotated_max_x = rotated_min_x;
+                    rotated_max_y = rotated_min_y;
                 } else {
-                    if (square_min_x > tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0) {
-                        square_min_x = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0;
-                    }
-                    if (square_min_y > tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0) {
-                        square_min_y = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0;
-                    }
-                    if (square_max_x < tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0) {
-                        square_max_x = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0;
-                    }
-                    if (square_max_y < tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0) {
-                        square_max_y = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0;
-                    }
+                    rotate_by_angle_zero(&calculated_x, &calculated_y,
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0,
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0,
+                                    rotate);
+                    set_min_max(&rotated_min_x, &rotated_max_x, calculated_x);
+                    set_min_max(&rotated_min_y, &rotated_max_y, calculated_y);
                 }
-
-                if (square_min_x > tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x1) {
-                    square_min_x = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x1;
-                }
-                if (square_min_y > tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y1) {
-                    square_min_y = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y1;
-                }
-                if (square_max_x < tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x1) {
-                    square_max_x = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x1;
-                }
-                if (square_max_y < tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y1) {
-                    square_max_y = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y1;
-                }
+                rotate_by_angle_zero(&calculated_x, &calculated_y,
+                                tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x1,
+                                tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y1,
+                                rotate);
+                set_min_max(&rotated_min_x, &rotated_max_x, calculated_x);
+                set_min_max(&rotated_min_y, &rotated_max_y, calculated_y);
 
                 if (!tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].is_curve) {
                     // it's line, curve points are ignored
                     continue;
                 }
 
-                if (square_min_x > tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_x) {
-                    square_min_x = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_x;
-                }
-                if (square_min_y > tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_y) {
-                    square_min_y = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_y;
-                }
-                if (square_max_x < tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_x) {
-                    square_max_x = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_x;
-                }
-                if (square_max_y < tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_y) {
-                    square_max_y = tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_y;
-                }
+                rotate_by_angle_zero(&calculated_x, &calculated_y,
+                                tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_x,
+                                tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_y,
+                                rotate);
+                set_min_max(&rotated_min_x, &rotated_max_x, calculated_x);
+                set_min_max(&rotated_min_y, &rotated_max_y, calculated_y);
             }
         }
 
@@ -290,12 +310,12 @@ int glyph_graph_generator_generate_graph(const uint32_t *list_characters, uint32
 
         tables->list_font_sizes[tables->list_font_sizes_count].x = -1;
         tables->list_font_sizes[tables->list_font_sizes_count].y = -1;
-        tables->list_font_sizes[tables->list_font_sizes_count].width = (int)( (float)(square_max_x-square_min_x)*rate/(float)quality) + 3;
-        tables->list_font_sizes[tables->list_font_sizes_count].height = (int)( (float)(square_max_y-square_min_y)*rate/(float)quality) + 3;
-        tables->list_font_sizes[tables->list_font_sizes_count].min_x = square_min_x;
-        tables->list_font_sizes[tables->list_font_sizes_count].max_x = square_max_x;
-        tables->list_font_sizes[tables->list_font_sizes_count].min_y = square_min_y;
-        tables->list_font_sizes[tables->list_font_sizes_count].max_y = square_max_y;
+        tables->list_font_sizes[tables->list_font_sizes_count].width = (int)( (float)(rotated_max_x-rotated_min_x)*rate/(float)quality) + 3;
+        tables->list_font_sizes[tables->list_font_sizes_count].height = (int)( (float)(rotated_max_y-rotated_min_y)*rate/(float)quality) + 3;
+        tables->list_font_sizes[tables->list_font_sizes_count].rotated_min_x = rotated_min_x;
+        tables->list_font_sizes[tables->list_font_sizes_count].rotated_max_x = rotated_max_x;
+        tables->list_font_sizes[tables->list_font_sizes_count].rotated_min_y = rotated_min_y;
+        tables->list_font_sizes[tables->list_font_sizes_count].rotated_max_y = rotated_max_y;
         tables->list_font_sizes[tables->list_font_sizes_count].is_empty = is_empty;
         tables->list_font_sizes_count++;
     }
@@ -333,13 +353,17 @@ int glyph_graph_generator_generate_graph(const uint32_t *list_characters, uint32
         max_y = tables->list_glyph[i].max_y;
 
         tmpi = get_max_value(max_x*rate, quality);
-        max_x = (float)tmpi;
+        tmpi = increase_max_value(tmpi, quality, tables->list_font_sizes[list_index].rotated_max_x*rate);
+        max_x = (float)(tmpi+quality);
         tmpi = get_max_value(max_y*rate, quality);
-        max_y = (float)tmpi;
+        tmpi = increase_max_value(tmpi, quality, tables->list_font_sizes[list_index].rotated_max_y*rate);
+        max_y = (float)(tmpi+quality);
         tmpi = get_min_value(min_x*rate, quality);
-        min_x = (float)tmpi;
+        tmpi = decrease_min_value(tmpi, quality, tables->list_font_sizes[list_index].rotated_min_x*rate);
+        min_x = (float)(tmpi-quality);
         tmpi = get_min_value(min_y*rate, quality);
-        min_y = (float)tmpi;
+        tmpi = decrease_min_value(tmpi, quality, tables->list_font_sizes[list_index].rotated_min_y*rate);
+        min_y = (float)(tmpi-quality);
 
         ret = glyph_drawer_init(&font_draw, (int)(max_x-min_x), (int)(max_y-min_y));
         if (ret) {
@@ -353,19 +377,31 @@ int glyph_graph_generator_generate_graph(const uint32_t *list_characters, uint32
 
         for (i2=0;i2<tables->list_glyph[i].list_path_size;i2++) {
             for (i3=0;i3<tables->list_glyph[i].list_path[i2].list_glyph_curve_size;i3++) {
+                rotate_by_angle_zero(&rotated_x[0], &rotated_y[0],
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0*rate,
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0*rate,
+                                    rotate);
+                rotate_by_angle_zero(&rotated_x[1], &rotated_y[1],
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x1*rate,
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y1*rate,
+                                    rotate);
                 if (tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].is_curve == 1) {
-                    glyph_drawer_paint_curve(tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0*rate-min_x,
-                                             tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0*rate-min_y,
-                                             tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x1*rate-min_x,
-                                             tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y1*rate-min_y,
-                                             tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_x*rate-min_x,
-                                             tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_y*rate-min_y,
+                    rotate_by_angle_zero(&rotated_x[2], &rotated_y[2],
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_x*rate,
+                                    tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].curve_y*rate,
+                                    rotate);
+                    glyph_drawer_paint_curve(rotated_x[0]-min_x+move_glyph_x,
+                                             rotated_y[0]-min_y+move_glyph_y,
+                                             rotated_x[1]-min_x+move_glyph_x,
+                                             rotated_y[1]-min_y+move_glyph_y,
+                                             rotated_x[2]-min_x+move_glyph_x,
+                                             rotated_y[2]-min_y+move_glyph_y,
                                              &font_draw, line__draw_index++);
                 } else {
-                    glyph_drawer_draw_line((int)(tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x0*rate-min_x),
-                                           (int)(tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y0*rate-min_y),
-                                           (int)(tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].x1*rate-min_x),
-                                           (int)(tables->list_glyph[i].list_path[i2].list_glyph_curve[i3].y1*rate-min_y),
+                    glyph_drawer_draw_line((int)(rotated_x[0]-min_x+move_glyph_x),
+                                           (int)(rotated_y[0]-min_y+move_glyph_y),
+                                           (int)(rotated_x[1]-min_x+move_glyph_x),
+                                           (int)(rotated_y[1]-min_y+move_glyph_y),
                                            &font_draw, line__draw_index++);
                 }
             }
@@ -373,9 +409,11 @@ int glyph_graph_generator_generate_graph(const uint32_t *list_characters, uint32
 
         glyph_filler_draw_inner_area(&font_draw);
         image_data->list_data[list_index].character = tables->corr_character_table.character[i];
+
         ret = glyph_image_add_glyph_into_image(tables->list_font_sizes, list_index,
                                                &font_draw, quality, image_data,
-                                               get_zero_line_value(tables->list_glyph[i].min_y*rate, quality));
+                                               (int32_t)(-min_x),
+                                               (int32_t)(-min_y));
         if (ret) {
             return ret;
         }
