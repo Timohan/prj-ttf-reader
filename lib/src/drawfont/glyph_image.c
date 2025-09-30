@@ -52,12 +52,14 @@ int glyph_image_generate_reader_data(uint32_t list_sizes_count, int32_t width, i
  * \param drawing
  * \param quality
  * \param data
- * \param offset_y
+ * \param origin_x (offset x position)
+ * \param origin_y (offset y position)
  * \return 0 on success
  */
 int glyph_image_add_glyph_into_image(const font_size_t *list_sizes, int list_index,
                                      const font_drawing_t *drawing, int quality,
-                                     prj_ttf_reader_data_t *data, int32_t offset_y)
+                                     prj_ttf_reader_data_t *data,
+                                     const int32_t origin_x, const int32_t origin_y)
 {
     int x = 0;
     int y = 0;
@@ -114,7 +116,7 @@ int glyph_image_add_glyph_into_image(const font_size_t *list_sizes, int list_ind
     for (x=start_x;x<=end_x;x++) {
         for (y=start_y;y<=end_y;y++) {
             data->image.data[ ((y-start_y)+list_sizes[list_index].y)*data->image.width+(x-start_x)+list_sizes[list_index].x ] =
-                    (uint8_t)(px_count[ (end_y-y+1)*new_width+x ]*255/quality_multiply);
+                    (uint8_t)(px_count[ (end_y-y+start_y)*new_width+x ]*255/quality_multiply);
         }
     }
 
@@ -122,8 +124,8 @@ int glyph_image_add_glyph_into_image(const font_size_t *list_sizes, int list_ind
     data->list_data[list_index].image_pixel_top_y = list_sizes[list_index].y;
     data->list_data[list_index].image_pixel_right_x = ((x-start_x)+list_sizes[list_index].x);
     data->list_data[list_index].image_pixel_bottom_y = ((y-start_y)+list_sizes[list_index].y);
-    data->list_data[list_index].image_pixel_offset_line_y = offset_y;
-
+    data->list_data[list_index].image_pixel_offset_line_x = origin_x/quality - start_x;
+    data->list_data[list_index].image_pixel_offset_line_y = start_y - origin_y/quality;
     free(px_count);
     return 0;
 }

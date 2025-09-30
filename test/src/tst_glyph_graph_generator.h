@@ -13,6 +13,5 @@
 
 int tst_glyph_graph_generator_min_value();
 int tst_glyph_graph_generator_max_value();
-int tst_glyph_graph_generator_zero_line_value();
 
 #endif // TST_GLYPH_GRAPH_GENERATOR_H

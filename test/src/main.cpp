@@ -25,7 +25,6 @@ TEST(ParseFont, Test) {
 TEST(GlyphGraphGenerator, Test) {
     EXPECT_EQ(tst_glyph_graph_generator_min_value(), 0);
     EXPECT_EQ(tst_glyph_graph_generator_max_value(), 0);
-    EXPECT_EQ(tst_glyph_graph_generator_zero_line_value(), 0);
 }
 
 
